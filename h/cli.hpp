@@ -6,7 +6,6 @@
 struct CliOptions {
     std::string interface = "eth0";
     bool promiscuous = false;
-    std::string bpf_filter;
     std::string output_file;
     int packet_count = 0;
     int capture_duration = 0;

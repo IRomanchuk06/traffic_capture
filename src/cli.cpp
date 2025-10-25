@@ -53,62 +53,6 @@ static bool interface_exists(const std::string& iface) {
     return exists;
 }
 
-static bool validate_bpf_filter(const std::string& filter) {
-    if (filter.empty()) {
-        return true; // empty is valid (no filter)
-    }
-    
-    // basic syntax checks
-    if (filter.length() > 1024) {
-        std::cerr << "[!] Filter too long (max 1024 chars)\n";
-        return false;
-    }
-    
-    // balanced parentheses
-    int depth = 0;
-    for (char c : filter) {
-        if (c == '(') depth++;
-        if (c == ')') depth--;
-        if (depth < 0) {
-            std::cerr << "[!] Unbalanced parentheses in filter\n";
-            return false;
-        }
-    }
-    if (depth != 0) {
-        std::cerr << "[!] Unbalanced parentheses in filter\n";
-        return false;
-    }
-    
-    // common keywords (basic validation)
-    const std::vector<std::string> valid_keywords = {
-        "tcp", "udp", "icmp", "ip", "ip6", "arp", "rarp",
-        "port", "host", "net", "src", "dst", "and", "or", "not",
-        "ether", "proto", "vlan", "mpls", "pppoe", "pppoes", "pppoed"
-    };
-    
-    // split filter into tokens and check at least one keyword exists
-    bool has_keyword = false;
-    std::istringstream iss(filter);
-    std::string token;
-    while (iss >> token) {
-        for (const auto& kw : valid_keywords) {
-            if (token.find(kw) != std::string::npos) {
-                has_keyword = true;
-                break;
-            }
-        }
-        if (has_keyword) break;
-    }
-    
-    if (!has_keyword) {
-        std::cerr << "[!] Filter doesn't contain recognized BPF keywords\n";
-        std::cerr << "    Valid keywords: tcp, udp, icmp, ip, arp, port, host, etc.\n";
-        return false;
-    }
-    
-    return true;
-}
-
 static void clear_screen() {
     std::cout << "\033[2J\033[H";
 }
@@ -246,184 +190,9 @@ static void setup_capture_limit(CliOptions& opts) {
     std::getline(std::cin, input);
 }
 
-static void setup_ethertype_filter(CliOptions& opts) {
-    clear_screen();
-    print_header("Step 3: EtherType Filter");
-    
-    struct EtherTypeOption {
-        std::string name;
-        std::string filter;
-        uint16_t ethertype;
-    };
-    
-    std::vector<EtherTypeOption> ethertypes = {
-        {"IPv4",        "ip",           0x0800},
-        {"IPv6",        "ip6",          0x86DD},
-        {"ARP",         "arp",          0x0806},
-        {"RARP",        "rarp",         0x8035},
-        {"VLAN",        "vlan",         0x8100},
-        {"PPPoE Disc",  "pppoed",       0x8863},
-        {"PPPoE Sess",  "pppoes",       0x8864},
-        {"LLDP",        "ether proto 0x88cc", 0x88CC},
-        {"MPLS",        "mpls",         0x8847}
-    };
-    
-    std::cout << "Select EtherType filter(s):\n\n";
-    for (size_t i = 0; i < ethertypes.size(); ++i) {
-        std::cout << "  " << (i + 1) << ") " << ethertypes[i].name 
-                  << " (0x" << std::hex << ethertypes[i].ethertype << std::dec << ")\n";
-    }
-    std::cout << "  0) No filter / Custom BPF\n\n";
-    
-    std::cout << "Enter choices separated by spaces (e.g., '1 2 3') or single choice: ";
-    std::string input;
-    std::getline(std::cin, input);
-    
-    if (input.empty() || input == "0") {
-        std::cout << "\nEnter custom BPF filter (or leave empty): ";
-        std::getline(std::cin, opts.bpf_filter);
-        if (!opts.bpf_filter.empty()) {
-            std::cout << "[+] Custom filter: " << opts.bpf_filter << "\n";
-        } else {
-            std::cout << "[+] No filter applied\n";
-        }
-    } else {
-        std::istringstream iss(input);
-        std::vector<int> choices;
-        int choice;
-        
-        while (iss >> choice) {
-            if (choice > 0 && choice <= (int)ethertypes.size()) {
-                choices.push_back(choice - 1);
-            }
-        }
-        
-        if (choices.empty()) {
-            std::cout << "[!] No valid choices. No filter applied.\n";
-        } else {
-            std::ostringstream filter;
-            for (size_t i = 0; i < choices.size(); ++i) {
-                if (i > 0) filter << " or ";
-                filter << ethertypes[choices[i]].filter;
-            }
-            opts.bpf_filter = filter.str();
-            
-            std::cout << "\n[+] Filter applied: " << opts.bpf_filter << "\n";
-            std::cout << "[+] Selected types: ";
-            for (size_t i = 0; i < choices.size(); ++i) {
-                if (i > 0) std::cout << ", ";
-                std::cout << ethertypes[choices[i]].name;
-            }
-            std::cout << "\n";
-        }
-    }
-    
-    std::cout << "\nPress Enter to continue...";
-    std::getline(std::cin, input);
-}
-
-static void setup_protocol_filter(CliOptions& opts) {
-    clear_screen();
-    print_header("Step 4: Protocol Filter (Optional)");
-    
-    std::cout << "Add protocol-specific filter?\n\n";
-    std::cout << "  1) TCP (specific port)\n";
-    std::cout << "  2) UDP (specific port)\n";
-    std::cout << "  3) ICMP\n";
-    std::cout << "  4) DNS (port 53)\n";
-    std::cout << "  5) HTTP/HTTPS (ports 80, 443)\n";
-    std::cout << "  6) SSH (port 22)\n";
-    std::cout << "  7) Custom filter\n";
-    std::cout << "  0) Skip\n\n";
-    
-    int choice = get_choice(0, 7);
-    std::string input;
-    std::string additional_filter;
-    
-    switch (choice) {
-        case 1: {
-            while (true) {
-                std::cout << "\nEnter TCP port (1-65535): ";
-                std::getline(std::cin, input);
-                int port = std::atoi(input.c_str());
-                if (port > 0 && port <= 65535) {
-                    additional_filter = "tcp port " + input;
-                    break;
-                }
-                std::cout << "[!] Invalid port number\n";
-            }
-            break;
-        }
-        case 2: {
-            while (true) {
-                std::cout << "\nEnter UDP port (1-65535): ";
-                std::getline(std::cin, input);
-                int port = std::atoi(input.c_str());
-                if (port > 0 && port <= 65535) {
-                    additional_filter = "udp port " + input;
-                    break;
-                }
-                std::cout << "[!] Invalid port number\n";
-            }
-            break;
-        }
-        case 3:
-            additional_filter = "icmp";
-            break;
-        case 4:
-            additional_filter = "port 53";
-            break;
-        case 5:
-            additional_filter = "tcp port 80 or tcp port 443";
-            break;
-        case 6:
-            additional_filter = "tcp port 22";
-            break;
-        case 7: {
-            while (true) {
-                std::cout << "\nEnter custom BPF filter: ";
-                std::getline(std::cin, additional_filter);
-                
-                if (additional_filter.empty()) {
-                    std::cout << "[!] Filter cannot be empty. Use option 0 to skip.\n";
-                    continue;
-                }
-                
-                if (validate_bpf_filter(additional_filter)) {
-                    std::cout << "[+] Filter syntax looks valid\n";
-                    break;
-                } else {
-                    std::cout << "[!] Invalid filter syntax. Try again or press Ctrl+C to cancel.\n";
-                    std::cout << "\nExamples:\n";
-                    std::cout << "  tcp port 8080\n";
-                    std::cout << "  udp and dst port 53\n";
-                    std::cout << "  host 192.168.1.1 and port 22\n";
-                    std::cout << "  (tcp port 80) or (tcp port 443)\n\n";
-                }
-            }
-            break;
-        }
-        case 0:
-            std::cout << "[+] No protocol filter\n";
-            break;
-    }
-    
-    if (!additional_filter.empty()) {
-        if (!opts.bpf_filter.empty()) {
-            opts.bpf_filter = "(" + opts.bpf_filter + ") and (" + additional_filter + ")";
-        } else {
-            opts.bpf_filter = additional_filter;
-        }
-        std::cout << "[+] Protocol filter added: " << additional_filter << "\n";
-    }
-    
-    std::cout << "\nPress Enter to continue...";
-    std::getline(std::cin, input);
-}
-
 static void setup_output(CliOptions& opts) {
     clear_screen();
-    print_header("Step 5: Output Options");
+    print_header("Step 3: Output Options");
     
     std::cout << "Output configuration:\n\n";
     std::cout << "  1) Console only\n";
@@ -461,7 +230,6 @@ static void print_final_config(const CliOptions& opts) {
     } else {
         std::cout << "Unlimited\n";
     }
-    std::cout << "  BPF filter:      " << (opts.bpf_filter.empty() ? "(none)" : opts.bpf_filter) << "\n";
     std::cout << "  Output file:     " << (opts.output_file.empty() ? "(console only)" : opts.output_file) << "\n";
     std::cout << "  Verbose:         " << (opts.verbose ? "YES" : "NO") << "\n";
     
@@ -474,12 +242,9 @@ static void print_final_config(const CliOptions& opts) {
     std::getline(std::cin, input);
 }
 
-
 static void interactive_setup(CliOptions& opts) {
     setup_interface(opts);
     setup_capture_limit(opts);
-    setup_ethertype_filter(opts);
-    setup_protocol_filter(opts);
     setup_output(opts);
     print_final_config(opts);
 }
@@ -489,7 +254,6 @@ void print_usage(const char* prog_name) {
     std::cout << "\nOptions:\n";
     std::cout << "  -I, --interface <name>    Network interface to capture\n";
     std::cout << "  -p, --promiscuous         Enable promiscuous mode\n";
-    std::cout << "  -f, --filter <bpf>        Apply BPF filter expression\n";
     std::cout << "  -o, --output <file>       Write packets to file\n";
     std::cout << "  -c, --count <num>         Capture only <num> packets\n";
     std::cout << "  -t, --time <sec>          Capture for <sec> seconds\n";
@@ -497,9 +261,9 @@ void print_usage(const char* prog_name) {
     std::cout << "  -i, --interactive         Interactive configuration mode\n";
     std::cout << "  -h, --help                Show this help\n";
     std::cout << "\nExamples:\n";
-    std::cout << "  " << prog_name << "                              # Interactive mode\n";
-    std::cout << "  " << prog_name << " -I eth0 -p -f \"tcp port 80\"  # Direct mode\n";
-    std::cout << "  " << prog_name << " -i                            # Force interactive\n";
+    std::cout << "  " << prog_name << "                    # Interactive mode\n";
+    std::cout << "  " << prog_name << " -I eth0 -p -c 100  # Direct mode\n";
+    std::cout << "  " << prog_name << " -i                 # Force interactive\n";
 }
 
 bool parse_cli(int argc, char** argv, CliOptions& opts) {
@@ -523,14 +287,6 @@ bool parse_cli(int argc, char** argv, CliOptions& opts) {
         }
         else if (arg == "-p" || arg == "--promiscuous") {
             opts.promiscuous = true;
-        }
-        else if (arg == "-f" || arg == "--filter") {
-            if (i + 1 < argc) {
-                opts.bpf_filter = argv[++i];
-            } else {
-                std::cerr << "[!] Error: " << arg << " requires an argument\n";
-                return false;
-            }
         }
         else if (arg == "-o" || arg == "--output") {
             if (i + 1 < argc) {
