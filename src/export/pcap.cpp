@@ -60,7 +60,7 @@ void PcapWriter::write_packet(const uint8_t* data, size_t len) {
     }
 
     write_packet_header(static_cast<uint32_t>(len));
-    m_file.write(reinterpret_cast<const char*>(data), len);
+    m_file.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(len));
     m_file.flush();
 }
 

@@ -70,7 +70,7 @@ bool PacketCapturer::open(const std::string& iface, bool promisc) {
     return true;
 }
 
-void PacketCapturer::run(std::function<void(const uint8_t*, size_t)> callback,
+void PacketCapturer::run(const std::function<void(const uint8_t*, size_t)>& callback,
                          std::atomic<bool>& running) {
     if (m_fd < 0) {
         throw std::runtime_error("Socket not opened. Call open() first.");

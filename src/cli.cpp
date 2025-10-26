@@ -103,7 +103,7 @@ static void setup_interface(CliOptions& opts) {
     }
     std::cout << "  0) Enter manually\n\n";
 
-    int choice = get_choice(0, interfaces.size());
+    int choice = get_choice(0, static_cast<int>(interfaces.size()));
 
     if (choice == 0) {
         // manual input with validation
@@ -188,6 +188,8 @@ static void setup_capture_limit(CliOptions& opts) {
             opts.capture_duration = 0;
             std::cout << "[+] Unlimited capture (stop with Ctrl+C)\n";
             break;
+        default:
+            break;
     }
 
     std::cout << "\nPress Enter to continue...";
@@ -220,6 +222,8 @@ static void setup_display_mode(CliOptions& opts) {
             opts.show_parsed = true;
             opts.show_hex = true;
             std::cout << "\n[+] Will show both parsed details and HEX dump\n";
+            break;
+        default:
             break;
     }
 

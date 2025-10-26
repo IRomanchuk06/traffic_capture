@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Local development script for running tests and analysis
 # Place this in your project root as: run_checks.sh
 # Usage: chmod +x run_checks.sh && ./run_checks.sh
@@ -20,7 +19,6 @@ echo ""
 echo "🔍 Running clang-tidy..."
 if command -v clang-tidy &> /dev/null; then
   clang-tidy -p build \
-    --checks=-*,readability-*,performance-*,bugprone-*,-readability-magic-numbers \
     --header-filter='.*' \
     $(find src -name '*.cpp' -o -name '*.c') 2>&1 | head -50
 else

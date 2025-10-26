@@ -13,7 +13,8 @@ public:
 
     bool open(const std::string& iface, bool promisc);
 
-    void run(std::function<void(const uint8_t*, size_t)> callback, std::atomic<bool>& running);
+    void run(const std::function<void(const uint8_t*, size_t)>& callback,
+             std::atomic<bool>& running);
 
     void close();
 
