@@ -1,9 +1,10 @@
 #ifndef IPV4_HPP
 #define IPV4_HPP
 
-#include "parsers/protocol_parser.hpp"
-#include <string>
 #include <cstdint>
+#include <string>
+
+#include "parsers/protocol_parser.hpp"
 
 struct Ipv4Packet {
     uint8_t version;
@@ -23,8 +24,10 @@ class Ipv4Parser : public ProtocolParser {
 public:
     bool parse(const uint8_t* data, size_t len) override;
     void print() const override;
-    const char* protocol_name() const override { return "IPv4"; }
-    
+    const char* protocol_name() const override {
+        return "IPv4";
+    }
+
 private:
     Ipv4Packet m_packet;
     const char* get_protocol_name(uint8_t protocol) const;

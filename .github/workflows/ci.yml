@@ -131,3 +131,37 @@ jobs:
             repo: context.repo.repo,
             body: comment
           });
+
+  check-format:
+    name: Check Code Format
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install clang-format
+      run: sudo apt-get install -y clang-format
+
+    - name: Check formatting
+      run: |
+        # Format all files in-place
+        find src h tests/unit -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) \
+          -exec clang-format -i {} \;
+        
+        # Check if any files changed
+        if ! git diff --quiet; then
+          echo "❌ Code is not formatted!"
+          echo ""
+          echo "The following files need formatting:"
+          git diff --name-only
+          echo ""
+          echo "Run locally: ./format_code.sh"
+          echo "Or: cmake --build build --target format"
+          echo ""
+          echo "Diff:"
+          git diff
+          exit 1
+        else
+          echo "✅ Code is properly formatted"
+        fi

@@ -1,9 +1,9 @@
 #ifndef FRAME_HPP
 #define FRAME_HPP
 
-#include <string>
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
+#include <string>
 
 struct EthernetFrame {
     std::string src_mac;

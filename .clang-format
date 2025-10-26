@@ -1,0 +1,35 @@
+---
+BasedOnStyle: Google
+
+Language: Cpp
+Standard: c++17
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+AccessModifierOffset: -4
+
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+ColumnLimit: 100
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+SpaceAfterCStyleCast: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+
+SortIncludes: CaseInsensitive
+IncludeBlocks: Regroup
+
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignOperands: true
+
+ReflowComments: true
+
+MaxEmptyLinesToKeep: 1
