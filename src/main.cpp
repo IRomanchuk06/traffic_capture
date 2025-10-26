@@ -2,8 +2,11 @@
 #include <atomic>
 #include <csignal>
 #include <cstring>
+#include <iomanip> 
 
 #include "capture.hpp"
+#include "protocol_parser.hpp"
+#include "frame.hpp"
 #include "cli.hpp"
 
 std::atomic<bool> g_running{true};
@@ -16,7 +19,43 @@ void signal_handler(int signum) {
 }
 
 void on_frame_captured(const uint8_t* data, size_t len, const CliOptions& opts) {
+    if (len < 14) {
+        if (opts.verbose) {
+            std::cerr << "[!] Frame too small: " << len << " bytes\n";
+        }
+        return;
+    }
+    
+    EthernetFrame frame;
+    if (!parse_ethernet_frame(data, len, frame)) {
+        if (opts.verbose) {
+            std::cerr << "[!] Failed to parse Ethernet frame\n";
+        }
+        return;
+    }
+    
+    std::cout << "\n[Frame] " << len << " bytes | "
+              << frame.src_mac << " -> " << frame.dst_mac << " | "
+              << "EtherType: 0x" << std::hex << std::setw(4) << std::setfill('0') 
+              << frame.ethertype << std::dec;
+    
+    ProtocolParser* parser = ProtocolParser::get_parser(frame.ethertype);
+    
+    if (parser) {
+        std::cout << " (" << parser->protocol_name() << ")\n";
+        
+        if (opts.verbose) {
+            if (parser->parse(frame.payload, frame.payload_len)) {
+                parser->print();
+            } else {
+                std::cerr << "[!] Failed to parse " << parser->protocol_name() << " packet\n";
+            }
+        }
+    } else {
+        std::cout << " (Unknown)\n";
+    }
 }
+
 
 int main(int argc, char** argv) {
     if (geteuid() != 0) {
@@ -44,10 +83,6 @@ int main(int argc, char** argv) {
     if (!capturer.open(opts.interface, opts.promiscuous)) {
         std::cerr << "[!] Failed to open capture on " << opts.interface << "\n";
         return 1;
-    }
-    
-    if (!opts.bpf_filter.empty()) {
-        // filter engine
     }
     
     try {
