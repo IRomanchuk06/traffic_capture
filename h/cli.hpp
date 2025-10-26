@@ -11,6 +11,8 @@ struct CliOptions {
     int capture_duration = 0;
     bool verbose = false;
     bool interactive = false;
+    bool show_parsed = true;
+    bool show_hex = false;
 };
 
 bool handle_cli(int argc, char** argv, CliOptions& opts);
@@ -18,4 +20,4 @@ bool handle_cli(int argc, char** argv, CliOptions& opts);
 void print_usage(const char* prog_name);
 bool parse_cli(int argc, char** argv, CliOptions& opts);
 
-#endif // CLI_HPP
+#endif

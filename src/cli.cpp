@@ -190,9 +190,43 @@ static void setup_capture_limit(CliOptions& opts) {
     std::getline(std::cin, input);
 }
 
+static void setup_display_mode(CliOptions& opts) {
+    clear_screen();
+    print_header("Step 3: Display Mode");
+    
+    std::cout << "Choose packet display mode:\n\n";
+    std::cout << "  1) Parsed output (protocol details)\n";
+    std::cout << "  2) HEX dump only\n";
+    std::cout << "  3) Both (parsed + HEX, like Wireshark)\n\n";
+    
+    int choice = get_choice(1, 3);
+    
+    switch (choice) {
+        case 1:
+            opts.show_parsed = true;
+            opts.show_hex = false;
+            std::cout << "\n[+] Will show parsed protocol details\n";
+            break;
+        case 2:
+            opts.show_parsed = false;
+            opts.show_hex = true;
+            std::cout << "\n[+] Will show HEX dump only\n";
+            break;
+        case 3:
+            opts.show_parsed = true;
+            opts.show_hex = true;
+            std::cout << "\n[+] Will show both parsed details and HEX dump\n";
+            break;
+    }
+    
+    std::cout << "\nPress Enter to continue...";
+    std::string input;
+    std::getline(std::cin, input);
+}
+
 static void setup_output(CliOptions& opts) {
     clear_screen();
-    print_header("Step 3: Output Options");
+    print_header("Step 4: Output Options");
     
     std::cout << "Output configuration:\n\n";
     std::cout << "  1) Console only\n";
@@ -230,6 +264,16 @@ static void print_final_config(const CliOptions& opts) {
     } else {
         std::cout << "Unlimited\n";
     }
+    
+    std::cout << "  Display mode:    ";
+    if (opts.show_parsed && opts.show_hex) {
+        std::cout << "Parsed + HEX\n";
+    } else if (opts.show_parsed) {
+        std::cout << "Parsed only\n";
+    } else {
+        std::cout << "HEX only\n";
+    }
+    
     std::cout << "  Output file:     " << (opts.output_file.empty() ? "(console only)" : opts.output_file) << "\n";
     std::cout << "  Verbose:         " << (opts.verbose ? "YES" : "NO") << "\n";
     
@@ -245,6 +289,7 @@ static void print_final_config(const CliOptions& opts) {
 static void interactive_setup(CliOptions& opts) {
     setup_interface(opts);
     setup_capture_limit(opts);
+    setup_display_mode(opts);
     setup_output(opts);
     print_final_config(opts);
 }
@@ -258,12 +303,14 @@ void print_usage(const char* prog_name) {
     std::cout << "  -c, --count <num>         Capture only <num> packets\n";
     std::cout << "  -t, --time <sec>          Capture for <sec> seconds\n";
     std::cout << "  -v, --verbose             Verbose output\n";
+    std::cout << "  -x, --hex                 Show HEX dump\n";
+    std::cout << "  -P, --parsed              Show parsed protocol details\n";
     std::cout << "  -i, --interactive         Interactive configuration mode\n";
     std::cout << "  -h, --help                Show this help\n";
     std::cout << "\nExamples:\n";
     std::cout << "  " << prog_name << "                    # Interactive mode\n";
     std::cout << "  " << prog_name << " -I eth0 -p -c 100  # Direct mode\n";
-    std::cout << "  " << prog_name << " -i                 # Force interactive\n";
+    std::cout << "  " << prog_name << " -P -x              # Both parsed and HEX\n";
 }
 
 bool parse_cli(int argc, char** argv, CliOptions& opts) {
@@ -315,10 +362,20 @@ bool parse_cli(int argc, char** argv, CliOptions& opts) {
         else if (arg == "-v" || arg == "--verbose") {
             opts.verbose = true;
         }
+        else if (arg == "-x" || arg == "--hex") {
+            opts.show_hex = true;
+        }
+        else if (arg == "-P" || arg == "--parsed") {
+            opts.show_parsed = true;
+        }
         else {
             std::cerr << "[!] Error: unknown option " << arg << "\n";
             return false;
         }
+    }
+    
+    if (!opts.show_parsed && !opts.show_hex) {
+        opts.show_parsed = true;
     }
     
     return true;

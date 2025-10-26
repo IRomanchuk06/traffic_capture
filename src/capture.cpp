@@ -72,8 +72,44 @@ bool PacketCapturer::open(const std::string& iface, bool promisc) {
 
 void PacketCapturer::run(std::function<void(const uint8_t*, size_t)> callback,
                          std::atomic<bool>& running) {
+    if (m_fd < 0) {
+        throw std::runtime_error("Socket not opened. Call open() first.");
+    }
+    
+    const size_t BUFFER_SIZE = 65536;
+    uint8_t buffer[BUFFER_SIZE];
+    
+    while (running.load()) {
+        ssize_t len = recv(m_fd, buffer, BUFFER_SIZE, 0);
+        
+        if (len < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            throw std::runtime_error(std::string("recv() failed: ") + strerror(errno));
+        }
+        
+        if (len == 0) {
+            continue;
+        }
+        
+        callback(buffer, static_cast<size_t>(len));
+    }
 }
 
 void PacketCapturer::close() {
-    
+    if (m_fd >= 0) {
+        if (m_promisc) {
+            struct packet_mreq mreq;
+            std::memset(&mreq, 0, sizeof(mreq));
+            mreq.mr_ifindex = m_ifindex;
+            mreq.mr_type = PACKET_MR_PROMISC;
+            
+            setsockopt(m_fd, SOL_PACKET, PACKET_DROP_MEMBERSHIP, 
+                      &mreq, sizeof(mreq));
+        }
+        
+        ::close(m_fd);
+        m_fd = -1;
+    }
 }

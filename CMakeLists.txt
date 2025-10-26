@@ -6,9 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
-file(GLOB SRC_FILES
+file(GLOB_RECURSE SRC_FILES
   ${CMAKE_SOURCE_DIR}/src/*.cpp
-  ${CMAKE_SOURCE_DIR}/src/parsers/*.cpp
+  ${CMAKE_SOURCE_DIR}/src/**/*.cpp
 )
 
 add_executable(traffic_capture ${SRC_FILES})
