@@ -1,0 +1,133 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build clang-tidy cppcheck
+
+    - name: Create build directory
+      run: cmake -E make_directory ${{github.workspace}}/build
+
+    - name: Configure CMake
+      working-directory: ${{github.workspace}}/build
+      run: |
+        cmake -G Ninja \
+          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+          -DBUILD_TESTS=ON \
+          -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_C_COMPILER=clang \
+          ${{github.workspace}}
+
+    - name: Build
+      working-directory: ${{github.workspace}}/build
+      run: cmake --build . --config ${{env.BUILD_TYPE}}
+
+    - name: Run tests
+      working-directory: ${{github.workspace}}/build
+      run: ctest -C ${{env.BUILD_TYPE}} --output-on-failure -V
+
+  static-analysis:
+    name: Static Code Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake clang-tidy cppcheck ninja-build
+
+    - name: Create build directory
+      run: cmake -E make_directory ${{github.workspace}}/build-analysis
+
+    - name: Configure CMake
+      working-directory: ${{github.workspace}}/build-analysis
+      run: |
+        cmake -G Ninja \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+          -DBUILD_TESTS=OFF \
+          -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_C_COMPILER=clang \
+          ${{github.workspace}}
+
+    - name: Run clang-tidy
+      working-directory: ${{github.workspace}}/build-analysis
+      run: |
+        clang-tidy -p . \
+          --checks=-*,readability-*,performance-*,bugprone-*,-readability-magic-numbers \
+          --header-filter='.*' \
+          $(find ${{github.workspace}}/src -name '*.cpp' -o -name '*.c') \
+          2>&1 | tee clang-tidy-report.txt || true
+
+    - name: Run cppcheck
+      working-directory: ${{github.workspace}}/build-analysis
+      run: |
+        cppcheck --enable=all \
+          --suppress=missingIncludeSystem \
+          --suppress=missingInclude \
+          --inline-suppr \
+          --output-file=cppcheck-report.txt \
+          --template='{file}:{line}:{severity}:{message}' \
+          ${{github.workspace}}/src
+
+    - name: Upload analysis reports
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: analysis-reports
+        path: |
+          ${{github.workspace}}/build-analysis/clang-tidy-report.txt
+          ${{github.workspace}}/build-analysis/cppcheck-report.txt
+
+    - name: Comment PR with analysis results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const clangTidyReport = fs.readFileSync('${{github.workspace}}/build-analysis/clang-tidy-report.txt', 'utf8');
+          const cppcheckReport = fs.readFileSync('${{github.workspace}}/build-analysis/cppcheck-report.txt', 'utf8');
+          
+          const comment = `## 📊 Static Analysis Results
+          
+          ### clang-tidy
+          \`\`\`
+          ${clangTidyReport.substring(0, 500)}
+          \`\`\`
+          
+          ### cppcheck
+          \`\`\`
+          ${cppcheckReport.substring(0, 500)}
+          \`\`\``;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });

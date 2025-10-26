@@ -1,0 +1,23 @@
+---
+Checks: >-
+  bugprone-*,
+  performance-*,
+  readability-*,
+  clang-analyzer-*,
+  -readability-magic-numbers,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-naming
+
+WarningsAsErrors: ''
+
+HeaderFilterRegex: '(src|h)/.*\.(hpp?|h)'
+
+FormatStyle: file
+
+CheckOptions:
+  - key: bugprone-reserved-identifier.AllowedIdentifiers
+    value: '__.*'
+  - key: readability-function-size.LineThreshold
+    value: '100'
+  - key: readability-function-size.StatementThreshold
+    value: '50'
