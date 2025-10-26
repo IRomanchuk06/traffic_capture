@@ -278,7 +278,7 @@ static void print_final_config(const CliOptions& opts) {
     std::cout << "  Verbose:         " << (opts.verbose ? "YES" : "NO") << "\n";
     
     std::cout << "\n╔═══════════════════════════════════════════╗\n";
-    std::cout << "║  Ready to start capture                  ║\n";
+    std::cout << "║  Ready to start capture                   ║\n";
     std::cout << "╚═══════════════════════════════════════════╝\n\n";
     
     std::cout << "Press Enter to start or Ctrl+C to cancel...";

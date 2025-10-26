@@ -10,9 +10,11 @@
 #include "cli.hpp"
 #include "parsers/frame.hpp"
 #include "parsers/protocol_parser.hpp"
+#include "export/pcap.hpp"
 
 std::atomic<bool> g_running{true};
 std::atomic<int> g_packet_counter{0};
+PcapWriter* g_pcap_writer = nullptr;
 
 void signal_handler(int signum) {
     if (signum == SIGINT || signum == SIGTERM) {
@@ -42,6 +44,10 @@ void on_frame_captured(const uint8_t* data, size_t len, const CliOptions& opts) 
     }
     
     int current_count = g_packet_counter.fetch_add(1) + 1;
+    
+    if (g_pcap_writer && g_pcap_writer->is_open()) {
+        g_pcap_writer->write_packet(data, len);
+    }
     
     EthernetFrame frame;
     if (!parse_ethernet_frame(data, len, frame)) {
@@ -99,6 +105,16 @@ int main(int argc, char** argv) {
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
     
+    PcapWriter pcap_writer;
+    if (!opts.output_file.empty()) {
+        if (pcap_writer.open(opts.output_file)) {
+            g_pcap_writer = &pcap_writer;
+            std::cout << "[*] Writing packets to " << opts.output_file << "\n";
+        } else {
+            std::cerr << "[!] Failed to open PCAP file, continuing without saving\n";
+        }
+    }
+    
     std::cout << "\n[*] Starting traffic capture on " << opts.interface << "\n";
     std::cout << "[*] Press Ctrl+C to stop\n";
     if (opts.promiscuous) {
@@ -151,6 +167,11 @@ int main(int argc, char** argv) {
     
     if (timer_thread.joinable()) {
         timer_thread.join();
+    }
+    
+    if (g_pcap_writer) {
+        pcap_writer.close();
+        std::cout << "[*] PCAP file closed: " << opts.output_file << "\n";
     }
     
     std::cout << "\n[*] Capture stopped\n";
