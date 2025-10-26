@@ -6,7 +6,7 @@
 #include <linux/if_ether.h>
 
 bool ArpParser::parse(const uint8_t* data, size_t len) {
-    if (len < 28) {
+    if(!data || len < 28) {
         return false;
     }
     

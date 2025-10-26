@@ -5,7 +5,7 @@
 #include <netinet/in.h>
 
 bool Ipv4Parser::parse(const uint8_t* data, size_t len) {
-    if (len < 20) {
+    if (!data || len < 20) {
         return false;
     }
     

@@ -3,7 +3,7 @@
 #include <iomanip>
 
 bool parse_ethernet_frame(const uint8_t* data, size_t len, EthernetFrame& frame) {
-    if (len < 14) {
+    if (!data || len < 14) {
         return false;
     }
     

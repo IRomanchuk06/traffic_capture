@@ -314,6 +314,9 @@ void print_usage(const char* prog_name) {
 }
 
 bool parse_cli(int argc, char** argv, CliOptions& opts) {
+    bool explicit_hex = false;
+    bool explicit_parsed = false;
+
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         
@@ -364,9 +367,11 @@ bool parse_cli(int argc, char** argv, CliOptions& opts) {
         }
         else if (arg == "-x" || arg == "--hex") {
             opts.show_hex = true;
+            explicit_hex = true;
         }
         else if (arg == "-P" || arg == "--parsed") {
             opts.show_parsed = true;
+            explicit_parsed = true;
         }
         else {
             std::cerr << "[!] Error: unknown option " << arg << "\n";
@@ -374,8 +379,12 @@ bool parse_cli(int argc, char** argv, CliOptions& opts) {
         }
     }
     
-    if (!opts.show_parsed && !opts.show_hex) {
+    if (!explicit_hex && !explicit_parsed) {
         opts.show_parsed = true;
+        opts.show_hex = false;
+    }
+    else if (explicit_hex && !explicit_parsed) {
+        opts.show_parsed = false;
     }
     
     return true;
