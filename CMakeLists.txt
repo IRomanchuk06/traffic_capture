@@ -15,3 +15,6 @@ add_executable(traffic_capture ${SRC_FILES})
 target_include_directories(traffic_capture PRIVATE ${CMAKE_SOURCE_DIR}/h)
 
 target_compile_options(traffic_capture PRIVATE -Wall -Wextra -Wpedantic)
+
+find_package(Threads REQUIRED)
+target_link_libraries(traffic_capture PRIVATE Threads::Threads)

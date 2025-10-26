@@ -3,6 +3,8 @@
 #include <csignal>
 #include <cstring>
 #include <iomanip>
+#include <chrono>
+#include <thread>
 
 #include "capture.hpp"
 #include "cli.hpp"
@@ -10,6 +12,7 @@
 #include "parsers/protocol_parser.hpp"
 
 std::atomic<bool> g_running{true};
+std::atomic<int> g_packet_counter{0};
 
 void signal_handler(int signum) {
     if (signum == SIGINT || signum == SIGTERM) {
@@ -38,6 +41,8 @@ void on_frame_captured(const uint8_t* data, size_t len, const CliOptions& opts) 
         return;
     }
     
+    int current_count = g_packet_counter.fetch_add(1) + 1;
+    
     EthernetFrame frame;
     if (!parse_ethernet_frame(data, len, frame)) {
         if (opts.verbose) {
@@ -46,7 +51,7 @@ void on_frame_captured(const uint8_t* data, size_t len, const CliOptions& opts) 
         return;
     }
     
-    std::cout << "\n[Frame] " << len << " bytes | "
+    std::cout << "\n[Packet #" << current_count << "] " << len << " bytes | "
               << frame.src_mac << " -> " << frame.dst_mac << " | "
               << "EtherType: 0x" << std::hex << std::setw(4) << std::setfill('0') 
               << frame.ethertype << std::dec;
@@ -71,6 +76,10 @@ void on_frame_captured(const uint8_t* data, size_t len, const CliOptions& opts) 
     
     if (opts.show_hex) {
         print_hex_dump(data, len);
+    }
+
+    if (opts.packet_count > 0 && current_count >= opts.packet_count) {
+        g_running.store(false);
     }
 }
 
@@ -105,10 +114,24 @@ int main(int argc, char** argv) {
         std::cout << "HEX only\n";
     }
     
+    if (opts.packet_count > 0) {
+        std::cout << "[*] Will capture " << opts.packet_count << " packets\n";
+    } else if (opts.capture_duration > 0) {
+        std::cout << "[*] Will capture for " << opts.capture_duration << " seconds\n";
+    }
+    
     PacketCapturer capturer;
     if (!capturer.open(opts.interface, opts.promiscuous)) {
         std::cerr << "[!] Failed to open capture on " << opts.interface << "\n";
         return 1;
+    }
+    
+    std::thread timer_thread;
+    if (opts.capture_duration > 0) {
+        timer_thread = std::thread([&opts]() {
+            std::this_thread::sleep_for(std::chrono::seconds(opts.capture_duration));
+            g_running.store(false);
+        });
     }
     
     try {
@@ -118,11 +141,20 @@ int main(int argc, char** argv) {
     } catch (const std::exception& e) {
         std::cerr << "[!] Capture error: " << e.what() << "\n";
         capturer.close();
+        if (timer_thread.joinable()) {
+            timer_thread.join();
+        }
         return 1;
     }
     
     capturer.close();
+    
+    if (timer_thread.joinable()) {
+        timer_thread.join();
+    }
+    
     std::cout << "\n[*] Capture stopped\n";
+    std::cout << "[*] Total packets captured: " << g_packet_counter.load() << "\n";
     
     return 0;
 }
