@@ -59,6 +59,10 @@ static void clear_screen() {
     std::cout << "\033[2J\033[H";
 }
 
+#include <iostream>
+#include <limits>
+#include <string>
+
 static int get_choice(int min, int max) {
     std::string input;
     while (true) {
@@ -68,11 +72,28 @@ static int get_choice(int min, int max) {
         if (input.empty())
             continue;
 
-        int choice = std::atoi(input.c_str());
-        if (choice >= min && choice <= max) {
-            return choice;
+        bool valid = true;
+        for (char c : input) {
+            if (!isdigit(c)) {
+                valid = false;
+                break;
+            }
         }
-        std::cout << "[!] Invalid choice. Enter " << min << "-" << max << "\n";
+        if (!valid) {
+            std::cout << "[!] Invalid input. Enter only digits.\n";
+            continue;
+        }
+
+        try {
+            int choice = std::stoi(input);
+            if (choice >= min && choice <= max) {
+                return choice;
+            } else {
+                std::cout << "[!] Choice out of range. Enter " << min << "-" << max << "\n";
+            }
+        } catch (const std::exception& e) {
+            std::cout << "[!] Invalid number. Try again.\n";
+        }
     }
 }
 
