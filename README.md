@@ -117,6 +117,8 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
 cmake --build build
 ```
 
+<small><i>Note: First build may take longer due to local download and build of GoogleTest dependency.</i></small>
+
 Run tests:
 
 ```bash
@@ -126,20 +128,21 @@ ctest --output-on-failure
 cd ..
 ```
 
-CLI options:
+CLI Options:
 
-```
--h, --help               Show help and exit
--i, --interface IFACE    Network interface to capture from
--c, --count N            Number of packets to capture
--t, --time SECS          Capture duration in seconds
--o, --output FILE        Output PCAP file (default: capture.pcap)
--p, --promiscuous        Enable promiscuous mode
--I, --interactive        Enable interactive mode (default)
--v, --verbose            Verbose output
--x, --hex                Print packets in hexadecimal format
--P, --parsed             Display parsed protocol information
-```
+| Option | Description |
+|:--------|:-------------|
+| `-h, --help` | Show help and exit |
+| `-i, --interface IFACE` | Network interface to capture from |
+| `-c, --count N` | Number of packets to capture |
+| `-t, --time SECS` | Capture duration in seconds |
+| `-o, --output FILE` | Output PCAP file (default: `capture.pcap`) |
+| `-p, --promiscuous` | Enable promiscuous mode |
+| `-I, --interactive` | Enable interactive mode (default) |
+| `-v, --verbose` | Verbose output |
+| `-x, --hex` | Print packets in hexadecimal format |
+| `-P, --parsed` | Display parsed protocol information |
+
 
 ---
 
