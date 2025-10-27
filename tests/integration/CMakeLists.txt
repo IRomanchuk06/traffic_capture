@@ -16,7 +16,6 @@ target_include_directories(integration_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/helpers
 )
 
-# Register tests
 include(GoogleTest)
 gtest_discover_tests(integration_tests
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

@@ -1,13 +1,15 @@
 #include <gtest/gtest.h>
+
 #include <atomic>
-#include <thread>
 #include <chrono>
 #include <cstring>
+#include <thread>
+
 #include "capture.hpp"
+#include "helpers/packet_sender.hpp"
+#include "helpers/veth_setup.hpp"
 #include "parsers/frame.hpp"
 #include "parsers/L2/arp.hpp"
-#include "helpers/veth_setup.hpp"
-#include "helpers/packet_sender.hpp"
 
 class VethCaptureTest : public ::testing::Test {
 protected:
@@ -33,13 +35,10 @@ TEST_F(VethCaptureTest, CaptureArpOnVethPair) {
                 return;
             }
 
-            capturer.run(
-                [this](const uint8_t* data, size_t len) {
-                    packets_received++;
-                },
-                capture_running
-            );
-        } catch (...) {}
+            capturer.run([this](const uint8_t* data, size_t len) { packets_received++; },
+                         capture_running);
+        } catch (...) {
+        }
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -85,9 +84,9 @@ TEST_F(VethCaptureTest, CaptureIcmpOnVethPair) {
                         ipv4_captured = true;
                     }
                 },
-                capture_running
-            );
-        } catch (...) {}
+                capture_running);
+        } catch (...) {
+        }
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -95,12 +94,8 @@ TEST_F(VethCaptureTest, CaptureIcmpOnVethPair) {
     RawPacketSender sender(veth.get_veth2());
     ASSERT_TRUE(sender.is_valid());
 
-    bool sent = sender.send_icmp_ping(
-        "aa:bb:cc:dd:ee:ff",
-        "11:22:33:44:55:66",
-        "10.0.0.1",
-        "10.0.0.2"
-    );
+    bool sent =
+        sender.send_icmp_ping("aa:bb:cc:dd:ee:ff", "11:22:33:44:55:66", "10.0.0.1", "10.0.0.2");
     ASSERT_TRUE(sent);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -128,13 +123,10 @@ TEST_F(VethCaptureTest, MultiplePacketsOnVeth) {
                 return;
             }
 
-            capturer.run(
-                [this](const uint8_t* data, size_t len) {
-                    packets_received++;
-                },
-                capture_running
-            );
-        } catch (...) {}
+            capturer.run([this](const uint8_t* data, size_t len) { packets_received++; },
+                         capture_running);
+        } catch (...) {
+        }
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -185,13 +177,10 @@ TEST_F(VethCaptureTest, CaptureWithPromiscuousMode) {
                 return;
             }
 
-            capturer.run(
-                [this](const uint8_t* data, size_t len) {
-                    packets_received++;
-                },
-                capture_running
-            );
-        } catch (...) {}
+            capturer.run([this](const uint8_t* data, size_t len) { packets_received++; },
+                         capture_running);
+        } catch (...) {
+        }
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));

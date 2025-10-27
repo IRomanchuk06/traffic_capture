@@ -1,12 +1,14 @@
 #include <gtest/gtest.h>
+
 #include <atomic>
-#include <thread>
 #include <chrono>
 #include <cstring>
+#include <thread>
+
 #include "capture.hpp"
+#include "helpers/packet_sender.hpp"
 #include "parsers/frame.hpp"
 #include "parsers/L2/arp.hpp"
-#include "helpers/packet_sender.hpp"
 
 class LoopbackCaptureTest : public ::testing::Test {
 protected:
@@ -21,7 +23,7 @@ TEST_F(LoopbackCaptureTest, OpenInvalidInterface) {
 
     PacketCapturer capturer;
     bool result = capturer.open("nonexistent_iface_xyz", false);
-    
+
     EXPECT_FALSE(result);
 }
 
@@ -32,7 +34,7 @@ TEST_F(LoopbackCaptureTest, OpenWithoutRoot) {
 
     PacketCapturer capturer;
     bool result = capturer.open("lo", false);
-    
+
     EXPECT_FALSE(result);
 }
 
@@ -43,7 +45,7 @@ TEST_F(LoopbackCaptureTest, PromiscuousModeEnabled) {
 
     PacketCapturer capturer;
     bool result = capturer.open("lo", true);
-    
+
     EXPECT_TRUE(result);
     capturer.close();
 }
@@ -80,21 +82,17 @@ TEST_F(LoopbackCaptureTest, CaptureIcmpPacketOnLoopback) {
                         capture_running = false;
                     }
                 },
-                capture_running
-            );
-        } catch (...) {}
+                capture_running);
+        } catch (...) {
+        }
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
     for (int i = 0; i < 3; ++i) {
-        if (!capture_running) break;
-        sender.send_icmp_ping(
-            "00:11:22:33:44:55",
-            "00:66:77:88:99:aa",
-            "127.0.0.1",
-            "127.0.0.1"
-        );
+        if (!capture_running)
+            break;
+        sender.send_icmp_ping("00:11:22:33:44:55", "00:66:77:88:99:aa", "127.0.0.1", "127.0.0.1");
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
@@ -133,9 +131,9 @@ TEST_F(LoopbackCaptureTest, MultipleArpPacketsSequence) {
                         capture_running = false;
                     }
                 },
-                capture_running
-            );
-        } catch (...) {}
+                capture_running);
+        } catch (...) {
+        }
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -168,30 +166,27 @@ TEST_F(LoopbackCaptureTest, StopCaptureImmediately) {
         try {
             PacketCapturer capturer;
             thread_started = true;
-            
+
             if (!capturer.open("lo", false)) {
                 return;
             }
-            
+
             open_succeeded = true;
 
-            capturer.run(
-                [this](const uint8_t* data, size_t len) {
-                    packets_received++;
-                },
-                capture_running
-            );
-        } catch (...) {}
+            capturer.run([this](const uint8_t* data, size_t len) { packets_received++; },
+                         capture_running);
+        } catch (...) {
+        }
     });
 
     auto start = std::chrono::steady_clock::now();
-    while (!thread_started.load() && 
+    while (!thread_started.load() &&
            std::chrono::steady_clock::now() - start < std::chrono::milliseconds(500)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    
+
     capture_running = false;
 
     if (capture_thread.joinable()) {
@@ -210,12 +205,9 @@ TEST_F(LoopbackCaptureTest, RunWithoutOpenThrowsException) {
     PacketCapturer capturer;
     capture_running = true;
 
-    EXPECT_THROW({
-        capturer.run(
-            [](const uint8_t* data, size_t len) {},
-            capture_running
-        );
-    }, std::runtime_error);
+    EXPECT_THROW(
+        { capturer.run([](const uint8_t* data, size_t len) {}, capture_running); },
+        std::runtime_error);
 }
 
 TEST_F(LoopbackCaptureTest, DoubleCloseIsNoop) {
@@ -225,9 +217,9 @@ TEST_F(LoopbackCaptureTest, DoubleCloseIsNoop) {
 
     PacketCapturer capturer;
     ASSERT_TRUE(capturer.open("lo", false));
-    
+
     capturer.close();
     capturer.close();
-    
+
     SUCCEED();
 }

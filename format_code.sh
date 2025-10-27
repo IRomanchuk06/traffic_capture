@@ -4,7 +4,7 @@
 
 echo "🎨 Formatting C++ code..."
 
-find src h tests/unit -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) \
+find src h tests -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) \
     -exec clang-format -i {} \;
 
 echo "✨ Formatting complete!"
